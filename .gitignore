@@ -1,0 +1,6 @@
+*~
+*.log
+*.pyc
+/build/
+/dist/
+/Grabscenic.egg-info/

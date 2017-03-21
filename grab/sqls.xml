@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string-array id="createSql">
+
+    <item id="city">
+      CREATE TABLE `city` (
+      `cityID` varchar(255) NOT NULL,
+      `name` varchar(255) NOT NULL,
+      `province` varchar(255) DEFAULT NULL,
+      `type` varchar(255) DEFAULT NULL,
+      `area` varchar(255) DEFAULT NULL,
+      `zoneNum` varchar(255) DEFAULT NULL,
+      `acreage` varchar(255) DEFAULT NULL,
+      `climate` varchar(255) DEFAULT NULL,
+      `zipcode` varchar(255) DEFAULT NULL,
+      `longitude` double DEFAULT NULL,
+      `latitude` double DEFAULT NULL,
+      `description` longtext,
+      PRIMARY KEY (`cityID`)
+      );
+    </item>
+
+    <item id="cityImages">
+      CREATE TABLE `cityImages` (
+      `cityID` varchar(255) NOT NULL,
+      `imageID` varchar(255) NOT NULL,
+      `imageUrl` varchar(255) NULL,
+      `imageName` varchar(255) NULL,
+      `imageDesc` varchar(255) NULL,
+      PRIMARY KEY (`cityID`, `imageID`) 
+      );
+    </item>
+
+    <item id="outerKey">
+      ALTER TABLE `cityImages` ADD CONSTRAINT `images-city` FOREIGN KEY (`cityID`) REFERENCES `city` (`cityID`);
+    </item>
+  </string-array>
+
+  <string-array id="dropSql">
+    <item id="cityImages">
+      DROP TABLE IF EXISTS cityImages;
+    </item>
+    <item id="city">
+      DROP TABLE IF EXISTS city;
+    </item>
+  </string-array>
+
+  <string-array id="cleanSql">
+    <item id="cityImages">
+      DELETE FROM cityImages;
+    </item>
+    <item id="city">
+      DELETE FROM city;
+    </item>
+  </string-array>
+
+  <string-array id="insertSql">
+    <item id="cityImages">
+      INSERT INTO cityImages(cityID,imageID,imageUrl,imageName,imageDesc) VALUES (%s,%s,%s,%s,%s)
+    </item>
+    <item id="city">
+      INSERT INTO city(cityID,name,province,type,area,zoneNum,acreage,climate,zipcode,longitude,latitude,description) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    </item>
+  </string-array>
+
+</resources>
