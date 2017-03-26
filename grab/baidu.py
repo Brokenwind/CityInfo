@@ -7,6 +7,8 @@ import numpy
 import re
 import sys
 import time
+import cStringIO, urllib2
+import PIL.Image as Image
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
@@ -223,9 +225,9 @@ class Baidu:
             return result
         except Exception,e:
             self._logger.error("errors occurred when extracting images contents: "+str(e.args))
-
+    
     def niceImage(self,params,num=10,width=1280,height=764):
-        """Get images from baidu
+        """Get images from baidu(this is very slow,because it needs to read picture stream )
         # Parameters:
         num: the number of pictures you want to get
         width: the minimal width of picture
@@ -270,24 +272,20 @@ class Baidu:
                         container = self.browser.find_element_by_xpath("//div[@id='wrapper']/div[@id='main']/div[@id='container']");
                         imgWrap = container.find_element_by_xpath("//div[@id='srcPic']/div[@class='img-wrapper']")
                         next = container.find_element_by_xpath("//span[@class='img-next']")
-                        toolbar = container.find_element_by_xpath("//div[@class='album-pnl']/div[@id='bottomDockPnl']/div[@id='toolbar']")
-                        zoomScale = toolbar.find_element_by_id("zoomScale")
                         i = 0
                         while i <= num:
                             img = imgWrap.find_element_by_tag_name("img")
-                            scaleText = zoomScale.text
-                            scale = 1
-                            if scaleText:
-                                scale = int(scaleText[0:len(scaleText)-1])
-                            wid = int(img.get_attribute("width")) * 100 / scale
-                            hig = int(img.get_attribute("height")) * 100 / scale
+                            imgsrc = img.get_attribute("src")
+                            file = urllib2.urlopen(imgsrc)
+                            tmpIm = cStringIO.StringIO(file.read())
+                            im = Image.open(tmpIm)
+                            wid = im.size[0]
+                            hig = im.size[1]
                             if wid >= width and hig >= height:
-                                imgsrc = img.get_attribute("src")
                                 result.append(imgsrc)
-                                self._logger.info("got picture: "+scaleText+","+"("+str(wid)+","+str(hig)+")"+imgsrc)
+                                self._logger.info("got picture: "+","+"("+str(wid)+","+str(hig)+")"+imgsrc)
                                 i += 1
                             next.click()
-                            time.sleep(0.2)
                     except Exception, e:
                         self._logger.error("errors occurred when extract information from srcPic: " + str(e.args))
                         return result
