@@ -7,6 +7,7 @@ from selenium import webdriver
 from pandas import DataFrame,Series
 from tables import Tables
 from baidu import Baidu
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from map import BaiduMap
 import sys
 import json
@@ -22,6 +23,9 @@ if sys.getdefaultencoding() != default_encoding:
 class Grab:
     def __init__(self):
         self._logger = Logger(__file__)
+        #profile = FirefoxProfile()
+        #profile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
+        #self._browser = webdriver.Firefox(profile)
         self._browser = webdriver.Firefox()
         self.baidu = Baidu(self._browser)
         self.map = BaiduMap()
@@ -53,7 +57,7 @@ class Grab:
                         continue
                     cityBasic = cityInfo["basic"]
                     summary = cityInfo["summary"]
-                    cityImage = self.baidu.image(name)
+                    cityImage = self.baidu.niceImage(name+'壁纸',width=1300,height=750)
                     cityGeo = self.map.getGeoAddress(name,self.ak)
                     if cityGeo:
                         if "location" in cityGeo.keys():

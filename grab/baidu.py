@@ -6,12 +6,14 @@ __author__ = "Brokenwind"
 import numpy
 import re
 import sys
+import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
 from pandas import DataFrame,Series
 # import Logger
 sys.path.append("..")
@@ -27,14 +29,21 @@ class Baidu:
         self._logger = Logger(__file__)
         # baidu search website
         self.baidu="https://www.baidu.com"
-        cap = webdriver.DesiredCapabilities.PHANTOMJS
         #cap["phantomjs.page.settings.loadImages"] = True
         #cap["phantomjs.page.settings.disk-cache"] = True
         #cap["phantomjs.page.settings.userAgent"] = "Mozilla/5.0 (X11; Linux x86_64; rv:50.0) Gecko/20100101 Firefox/50.0"
         #self.browser = webdriver.PhantomJS(desired_capabilities=cap)
         #self.browser = webdriver.PhantomJS()
         if not browser:
-            self.browser = webdriver.Firefox()
+            ## get the Firefox profile object
+            profile = FirefoxProfile()
+            ## Disable CSS. We can not disable this then get images from baidu
+            #profile.set_preference('permissions.default.stylesheet', 2)
+            ## Disable images
+            #profile.set_preference('permissions.default.image', 2)
+            ## Disable Flash
+            profile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', 'false')
+            self.browser = webdriver.Firefox(profile)
         else:
             self.browser = browser
 
@@ -167,7 +176,7 @@ class Baidu:
             self._logger.error("errors occurred when extracting Baike detailed information: "+str(e.args))
         return result
 
-    def image(self,params,num=10,width=400,height=400):
+    def image(self,params,num=10,width=900,height=400):
         """Get images from baidu
         # Parameters:
         num: the number of pictures you want to get
@@ -175,12 +184,6 @@ class Baidu:
         height: the minimal height of picture
         # Return:
         a list of map address
-        """
-        """
-        suffix = u" 图片"
-        link = self.search(params,suffix)
-        if not link:
-            return None
         """
         result = []
         if num <= 0:
@@ -214,17 +217,87 @@ class Baidu:
                     wid = int(item.get_attribute("data-width"))
                     hei = int(item.get_attribute("data-height"))
                     if wid >= width and hei >= height:
-                        self._logger.info("got picture: "+item.get_attribute("data-objurl"))
+                        self._logger.info("got picture: " + item.get_attribute("data-objurl"))
                         result.append(item.get_attribute("data-objurl"))
             self._logger.info("sorry,we did not grab enough "+str(num)+" pictures,just "+str(len(result))+" pictures")
             return result
         except Exception,e:
             self._logger.error("errors occurred when extracting images contents: "+str(e.args))
 
+    def niceImage(self,params,num=10,width=1280,height=764):
+        """Get images from baidu
+        # Parameters:
+        num: the number of pictures you want to get
+        width: the minimal width of picture
+        height: the minimal height of picture
+        # Return:
+        a list of map address
+        """
+        result = []
+        if num <= 0:
+            return result
+        self.browser.get("https://image.baidu.com/")
+        WebDriverWait(self.browser, 10).until(
+            EC.presence_of_element_located((By.ID, "homeSearchForm"))
+        )
+        searinput = self.browser.find_element_by_id("homeSearchForm")
+        searinput.send_keys(params.decode())
+        searinput.send_keys(Keys.RETURN)
+        try:
+            WebDriverWait(self.browser, 60).until(
+                EC.presence_of_element_located((By.XPATH, "//div[@id='imgid']/div[@class='imgpage']/ul"))
+            )
+        except Exception,e:
+            self._logger.error("Timeout when to got image gallery")
+            return result
+        try:
+            pageUl = self.browser.find_element_by_xpath("//div[@id='imgid']/div[@class='imgpage']/ul")
+            if pageUl:
+                self._logger.info("Got a gallery of images")
+                detailUrl = pageUl.find_element_by_xpath("//li/div[@class='imgbox']/a")
+                if detailUrl:
+                    entry = detailUrl.get_attribute('href')
+                    self.browser.get(entry)
+                    self._logger.info("Got into detail page of image")
+                    try:
+                        WebDriverWait(self.browser, 10).until(
+                            EC.presence_of_element_located((By.XPATH, "//div[@id='wrapper']/div[@id='main']/div[@id='container']/div[@id='srcPic']/div[@class='img-wrapper']"))
+                        )
+                    except Exception, e:
+                        self._logger.error("Timeout when to got image gallery")
+                        return result
+                    try:
+                        container = self.browser.find_element_by_xpath("//div[@id='wrapper']/div[@id='main']/div[@id='container']");
+                        imgWrap = container.find_element_by_xpath("//div[@id='srcPic']/div[@class='img-wrapper']")
+                        next = container.find_element_by_xpath("//span[@class='img-next']")
+                        toolbar = container.find_element_by_xpath("//div[@class='album-pnl']/div[@id='bottomDockPnl']/div[@id='toolbar']")
+                        zoomScale = toolbar.find_element_by_id("zoomScale")
+                        i = 0
+                        while i <= num:
+                            img = imgWrap.find_element_by_tag_name("img")
+                            scaleText = zoomScale.text
+                            scale = 1
+                            if scaleText:
+                                scale = int(scaleText[0:len(scaleText)-1])
+                            wid = int(img.get_attribute("width")) * 100 / scale
+                            hig = int(img.get_attribute("height")) * 100 / scale
+                            if wid >= width and hig >= height:
+                                imgsrc = img.get_attribute("src")
+                                result.append(imgsrc)
+                                self._logger.info("got picture: "+scaleText+","+"("+str(wid)+","+str(hig)+")"+imgsrc)
+                                i += 1
+                            next.click()
+                            time.sleep(0.2)
+                    except Exception, e:
+                        self._logger.error("errors occurred when extract information from srcPic: " + str(e.args))
+                        return result
+                else:
+                    self._logger.error("Can not get into detail page of image")
+            else:
+                self._logger.error("Did not get images of the name given,please check it")
+        except Exception,e:
+            self._logger.error("errors occurred when extracting images contents: "+str(e.args))
+        return result
 if __name__ == "__main__":
     search = Baidu(None)
-    sce = search.baike("青岛")
-    for i in sce["basic"]:
-        print "%s = " % i,sce["basic"][i]
-    #print sce.opentime
-    #print sce.closetime
+    sce = search.niceImage("舟山市")
